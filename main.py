@@ -30,8 +30,8 @@ def save_file_to_github(file_path):
     """
     Зберігає конкретний JSON файл у GitHub
     """
-    token = os.getenv("GITHUB_TOKEN")
-    repo = os.getenv("GITHUB_REPO", "Polilen/tgbot")
+    token = os.getenv("GITHUB_TOKEN", "").strip()
+    repo = os.getenv("GITHUB_REPO", "Polilen/tgbot").strip()
 
     if not token:
         return
@@ -41,7 +41,7 @@ def save_file_to_github(file_path):
             content = f.read()
 
         url = f"https://api.github.com/repos/{repo}/contents/{file_path}"
-        headers = {"Authorization": f"token {token}"}
+        headers = {"Authorization": f"Bearer {token}"}
 
         # Отримуємо SHA поточного файлу
         r = requests.get(url, headers=headers)
@@ -68,14 +68,14 @@ def load_file_from_github(file_path):
     """
     Завантажує конкретний JSON файл з GitHub
     """
-    token = os.getenv("GITHUB_TOKEN")
-    repo = os.getenv("GITHUB_REPO", "Polilen/tgbot")
+    token = os.getenv("GITHUB_TOKEN", "").strip()
+    repo = os.getenv("GITHUB_REPO", "Polilen/tgbot").strip()
     
     if not token:
         return None
     
     url = f"https://api.github.com/repos/{repo}/contents/{file_path}"
-    headers = {"Authorization": f"token {token}"}
+    headers = {"Authorization": f"Bearer {token}"}
     
     try:
         response = requests.get(url, headers=headers)
