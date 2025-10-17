@@ -16,7 +16,7 @@ from telegram.ext import (
 )
 from PIL import Image
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+TOKEN = "8320309750:AAHoAET0wBIIwMx49pr6k-2ArGK2mnwxQeA"
 
 friends_file = "friends.json"
 known_users_file = "known_users.json"
@@ -874,58 +874,5 @@ app.add_handler(CommandHandler("updates", updates_command))
 app.add_handler(CallbackQueryHandler(button_handler))
 
 if __name__ == "__main__":
-    # Детальна діагностика TOKEN
-    print("🔍 Перевірка TOKEN...")
-    
-    if not TOKEN:
-        print("❌ КРИТИЧНА ПОМИЛКА: TELEGRAM_BOT_TOKEN не знайдено або порожній!")
-        print("💡 Перевірте змінні оточення на хостингу:")
-        print("   1. Перейдіть в Settings → Environment Variables")
-        print("   2. Додайте: TELEGRAM_BOT_TOKEN = ваш_токен")
-        print(f"   3. Поточне значення TOKEN: '{TOKEN}'")
-        exit(1)
-    
-    if len(TOKEN) < 20:
-        print(f"❌ ПОМИЛКА: TOKEN занадто короткий ({len(TOKEN)} символів)")
-        print(f"   Поточне значення: '{TOKEN}'")
-        exit(1)
-    
-    # Маскуємо TOKEN для безпеки
-    masked_token = f"{TOKEN[:10]}...{TOKEN[-10:]}" if len(TOKEN) > 20 else "***"
-    print(f"✅ TOKEN знайдено: {masked_token}")
-    print(f"   Довжина: {len(TOKEN)} символів")
-    
-    try:
-        app = ApplicationBuilder().token(TOKEN).build()
-        print("✅ Бот успішно ініціалізовано")
-        
-        # Перевіряємо чи є WEBHOOK_URL (для хостингу)
-        webhook_url = os.getenv("WEBHOOK_URL", "").strip()
-        port = int(os.getenv("PORT", "8080"))
-        
-        if webhook_url:
-            # Режим WEBHOOK (для продакшену на хостингу)
-            print(f"🌐 Використовується WEBHOOK режим")
-            print(f"   URL: {webhook_url}")
-            print(f"   PORT: {port}")
-            
-            app.run_webhook(
-                listen="0.0.0.0",
-                port=port,
-                url_path=TOKEN,
-                webhook_url=f"{webhook_url}/{TOKEN}"
-            )
-        else:
-            # Режим POLLING (для локальної розробки)
-            print("🔄 Використовується POLLING режим (локальна розробка)")
-            print("💡 Для продакшену додайте змінну WEBHOOK_URL на хостингу")
-            app.run_polling(drop_pending_updates=True)
-            
-        print("Бот запущено ✅")
-        
-    except Exception as e:
-        print(f"❌ Помилка при запуску бота: {e}")
-        print(f"💡 Перевірте правильність TOKEN на https://t.me/BotFather")
-        import traceback
-        traceback.print_exc()
-        exit(1)
+    print("Бот запущено ✅")
+    app.run_polling()
