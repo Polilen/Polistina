@@ -16,7 +16,7 @@ from telegram.ext import (
 )
 from PIL import Image
 
-TOKEN = "8320309750:AAHoAET0wBIIwMx49pr6k-2ArGK2mnwxQeA"
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 
 friends_file = "friends.json"
 known_users_file = "known_users.json"
