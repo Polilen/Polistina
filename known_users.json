@@ -21,5 +21,12 @@
     "name": "♡𝕯𝖎♡",
     "coins": 11,
     "last_salary": "2025-10-16T21:16:14.734443+03:00"
+  },
+  "bogdanprost": {
+    "id": 1898851021,
+    "gender": "female",
+    "name": "Бодя",
+    "coins": 0,
+    "last_salary": null
   }
 }
