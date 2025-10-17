@@ -874,5 +874,33 @@ app.add_handler(CommandHandler("updates", updates_command))
 app.add_handler(CallbackQueryHandler(button_handler))
 
 if __name__ == "__main__":
-    print("Бот запущено ✅")
-    app.run_polling()
+    # Детальна діагностика TOKEN
+    print("🔍 Перевірка TOKEN...")
+    
+    if not TOKEN:
+        print("❌ КРИТИЧНА ПОМИЛКА: TELEGRAM_BOT_TOKEN не знайдено або порожній!")
+        print("💡 Перевірте змінні оточення на хостингу:")
+        print("   1. Перейдіть в Settings → Environment Variables")
+        print("   2. Додайте: TELEGRAM_BOT_TOKEN = ваш_токен")
+        print(f"   3. Поточне значення TOKEN: '{TOKEN}'")
+        exit(1)
+    
+    if len(TOKEN) < 20:
+        print(f"❌ ПОМИЛКА: TOKEN занадто короткий ({len(TOKEN)} символів)")
+        print(f"   Поточне значення: '{TOKEN}'")
+        exit(1)
+    
+    # Маскуємо TOKEN для безпеки (показуємо тільки перші та останні символи)
+    masked_token = f"{TOKEN[:10]}...{TOKEN[-10:]}" if len(TOKEN) > 20 else "***"
+    print(f"✅ TOKEN знайдено: {masked_token}")
+    print(f"   Довжина: {len(TOKEN)} символів")
+    
+    try:
+        app = ApplicationBuilder().token(TOKEN).build()
+        print("✅ Бот успішно ініціалізовано")
+        print("🚀 Запускаємо polling...")
+        app.run_polling()
+    except Exception as e:
+        print(f"❌ Помилка при запуску бота: {e}")
+        print(f"💡 Перевірте правильність TOKEN на https://t.me/BotFather")
+        exit(1)
