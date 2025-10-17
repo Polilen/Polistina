@@ -16,7 +16,7 @@ from telegram.ext import (
 )
 from PIL import Image
 
-TOKEN = "8320309750:AAHoAET0wBIIwMx49pr6k-2ArGK2mnwxQeA"
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 
 friends_file = "friends.json"
 known_users_file = "known_users.json"
@@ -520,14 +520,31 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Стать встановлена як Жіноча ♀.")
         return
 
-    # --- Дружба ---
-  # Пропозиція дружби
+ # --- Дружба ---
+# Пропозиція дружби
     if text.startswith("др пропозиція"):
         words = text.split()
         if len(words) < 3:
             await update.message.reply_text("Формат: др пропозиція @username")
             return
+        
         proposer = username
+        target_raw = words[-1].lstrip("@").lower()
+        target_username = find_user(target_raw)
+        
+        if not target_username:
+            await update.message.reply_text(f"Користувача '{target_raw}' не знайдено.")
+            return
+        
+        if target_username == proposer:
+            await update.message.reply_text("Неможливо дружити з самим собою!")
+            return
+        
+        if target_username in friends.get(proposer, {}):
+            await update.message.reply_text(f"@{proposer} і @{target_username} вже друзі! 🫶")
+            return
+        
+        # Перевіряємо стать пропонуючого
         if known_users.get(proposer, {}).get("gender") is None:
             keyboard = InlineKeyboardMarkup([[
                 InlineKeyboardButton("🟦 Чоловіча", callback_data=f"set_gender|{proposer}|male"),
@@ -535,17 +552,20 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]])
             await update.message.reply_text(f"@{proposer}, спершу обери свою стать:", reply_markup=keyboard)
             return
-        target_raw = words[-1].lstrip("@").lower()
-        target_username = find_user(target_raw)
-        if not target_username:
-            await update.message.reply_text(f"Користувача '{target_raw}' не знайдено.")
+        
+        # Перевіряємо стать цілі (НОВИЙ БЛОК)
+        if known_users.get(target_username, {}).get("gender") is None:
+            keyboard = InlineKeyboardMarkup([[
+                InlineKeyboardButton("🟦 Чоловіча", callback_data=f"set_gender_and_propose|{target_username}|male|{proposer}"),
+                InlineKeyboardButton("🩷 Жіноча", callback_data=f"set_gender_and_propose|{target_username}|female|{proposer}")
+            ]])
+            await update.message.reply_text(
+                f"@{target_username}, спершу обери свою стать, щоб @{proposer} міг запропонувати тобі дружбу:",
+                reply_markup=keyboard
+            )
             return
-        if target_username == proposer:
-            await update.message.reply_text("Неможливо дружити з самим собою!")
-            return
-        if target_username in friends.get(proposer, {}):
-            await update.message.reply_text(f"@{proposer} і @{target_username} вже друзі! 🫶")
-            return
+        
+        # Якщо обидва вказали стать — надсилаємо пропозицію
         keyboard = InlineKeyboardMarkup([[
             InlineKeyboardButton("Так 🫶", callback_data=f"accept|{proposer}|{target_username}"),
             InlineKeyboardButton("Ні 🙃", callback_data=f"reject|{proposer}|{target_username}")
@@ -614,18 +634,39 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     action = data[0]
 
-    if data[0] == "unfriend_all":
+    # Обробка видалення всіх друзів
+    if action == "unfriend_all":
         sender_username = data[1]
-        # Удаляем всех друзей
         for friend in list(friends.get(sender_username, {})):
             friends[friend].pop(sender_username, None)
         friends[sender_username] = {}
         save_friends()
         await query.edit_message_text("Ви більше ні з ким не дружите 💔")
-    elif data[0] == "unfriend_no":
+        return
+
+    # Обробка відміни видалення
+    if action == "unfriend_no":
         await query.edit_message_text("Дружба залишилася 😊")
+        return
 
+    # Обробка видалення конкретного друга
+    if action == "unfriend_yes":
+        if len(data) < 3:
+            await query.edit_message_text("Помилка: невірний формат даних")
+            return
+        sender_username = data[1]
+        target_username = data[2]
+        
+        if sender_username in friends:
+            friends[sender_username].pop(target_username, None)
+        if target_username in friends:
+            friends[target_username].pop(sender_username, None)
+        save_friends()
+        
+        await query.edit_message_text(f"Ви перестали дружити з @{target_username} 😢")
+        return
 
+    # Обробка встановлення статі (звичайний випадок)
     if action == "set_gender":
         usern, gender = data[1], data[2]
         known_users[usern]["gender"] = gender
@@ -633,6 +674,30 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"Стать встановлена як '{gender}'. Тепер можна пропонувати дружбу.")
         return
 
+    # НОВИЙ БЛОК: Встановлення статі + автоматична пропозиція дружби
+    if action == "set_gender_and_propose":
+        target_username = data[1]
+        gender = data[2]
+        proposer = data[3]
+        
+        # Встановлюємо стать
+        known_users[target_username]["gender"] = gender
+        save_known_users()
+        
+        # Надсилаємо пропозицію дружби
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton("Так 🫶", callback_data=f"accept|{proposer}|{target_username}"),
+            InlineKeyboardButton("Ні 🙃", callback_data=f"reject|{proposer}|{target_username}")
+        ]])
+        
+        await query.edit_message_text(
+            f"Стать встановлена як '{gender}'.\n\n"
+            f"@{target_username}, @{proposer} хоче стати твоїм другом! Приймаєш?",
+            reply_markup=keyboard
+        )
+        return
+
+    # Обробка прийняття/відхилення дружби
     if len(data) != 3:
         return
 
@@ -750,6 +815,19 @@ async def unfriend(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
+async def updates_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = (
+        "🔄 <b>Останнє оновлення бота</b>\n\n"
+        "📅 <b>Дата:</b> 17.10.2025\n\n"
+        "✨ <b>Що нового:</b>\n\n"
+        "1️⃣ <b>Виправлено помилку</b> з командою 'перестати дружити @username' — тепер працює коректно!\n\n"
+        "2️⃣ <b>Покращено систему пропозиції дружби:</b>\n"
+        "   • Тепер якщо у користувача, якому пропонують дружбу, не вказана стать — бот спочатку попросить вказати стать\n"
+        "   • Після вибору статі пропозиція дружби надсилається автоматично\n\n"
+        "3️⃣ <b>Додано команду /updates</b> — тепер ти можеш переглянути всі останні оновлення!\n\n"
+        "📝 Використовуй /help щоб побачити всі команди!"
+    )
+    await update.message.reply_text(text, parse_mode="HTML")
 
 async def zp(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await handle_text(update, context)
@@ -764,8 +842,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/friends — Список всіх друзів та як довго дружать\n"
         "/my — Показати твою картку (ім'я, стать, друзі)\n"
         "/unfriend — Розірвати всі дружби\n"
-        "/hug всіх — Обійняти своїх друзів (надсилає фото)\n"
-        "/give_bream всім — Дати ляща друзям (надсилає фото)\n"
+        "/updates — Показати останні оновлення бота\n"
         "/help — Показати цю довідку\n\n"
         "💬 <b>Текстові команди:</b>\n"
         "др пропозиція @username — Запропонувати дружбу\n"
@@ -793,6 +870,7 @@ app.add_handler(CommandHandler("give_bream", give_bream))
 app.add_handler(CommandHandler("zp", zp))
 app.add_handler(CommandHandler("balance", balance))
 app.add_handler(CommandHandler("help", help_command))
+app.add_handler(CommandHandler("updates", updates_command))
 app.add_handler(CallbackQueryHandler(button_handler))
 
 if __name__ == "__main__":
