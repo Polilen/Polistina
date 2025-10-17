@@ -890,7 +890,7 @@ if __name__ == "__main__":
         print(f"   Поточне значення: '{TOKEN}'")
         exit(1)
     
-    # Маскуємо TOKEN для безпеки (показуємо тільки перші та останні символи)
+    # Маскуємо TOKEN для безпеки
     masked_token = f"{TOKEN[:10]}...{TOKEN[-10:]}" if len(TOKEN) > 20 else "***"
     print(f"✅ TOKEN знайдено: {masked_token}")
     print(f"   Довжина: {len(TOKEN)} символів")
@@ -898,9 +898,34 @@ if __name__ == "__main__":
     try:
         app = ApplicationBuilder().token(TOKEN).build()
         print("✅ Бот успішно ініціалізовано")
-        print("🚀 Запускаємо polling...")
-        app.run_polling()
+        
+        # Перевіряємо чи є WEBHOOK_URL (для хостингу)
+        webhook_url = os.getenv("WEBHOOK_URL", "").strip()
+        port = int(os.getenv("PORT", "8080"))
+        
+        if webhook_url:
+            # Режим WEBHOOK (для продакшену на хостингу)
+            print(f"🌐 Використовується WEBHOOK режим")
+            print(f"   URL: {webhook_url}")
+            print(f"   PORT: {port}")
+            
+            app.run_webhook(
+                listen="0.0.0.0",
+                port=port,
+                url_path=TOKEN,
+                webhook_url=f"{webhook_url}/{TOKEN}"
+            )
+        else:
+            # Режим POLLING (для локальної розробки)
+            print("🔄 Використовується POLLING режим (локальна розробка)")
+            print("💡 Для продакшену додайте змінну WEBHOOK_URL на хостингу")
+            app.run_polling(drop_pending_updates=True)
+            
+        print("Бот запущено ✅")
+        
     except Exception as e:
         print(f"❌ Помилка при запуску бота: {e}")
         print(f"💡 Перевірте правильність TOKEN на https://t.me/BotFather")
+        import traceback
+        traceback.print_exc()
         exit(1)
